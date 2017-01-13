@@ -237,12 +237,3 @@ HttpService.FORM_MEDIA_TYPE = FORM_MEDIA_TYPE;
 //------------------------------------------------------------------------------
 
 module.exports = HttpService;
-
-let service = new HttpService('http://httpbin.org/x/');
-service.get('get', function (err, data) {
-    if (err) {
-        console.error(err.toString());
-    } else {
-        console.log(data);
-    }
-})
