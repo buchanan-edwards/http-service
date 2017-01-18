@@ -81,7 +81,7 @@ class HttpService {
     /**
      * Accepts an HTTP or HTTPS URI (e.g., https://example.com:443).
      */
-    constructor(uri) {
+    constructor(uri, options) {
         const parsed = url.parse(uri);
         if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
             throw new URIError(`'${uri}' invalid protocol (expected http or https)`);
@@ -93,6 +93,7 @@ class HttpService {
         if (!this.port) {
             this.port = this.protocol === 'http:' ? 80 : 443;
         }
+        this.options = options || {};
     }
 
     // get(path, [query,] callback)
@@ -159,14 +160,15 @@ class HttpService {
                 headers[CONTENT_LENGTH_HEADER] = Buffer.byteLength(data);
             }
         }
-        let options = {
+        let options = Object.assign({}, this.options); // copy
+        Object.assign(options, { // override
             method: method,
             protocol: this.protocol,
             host: this.hostname,
             port: this.port,
             path: this.pathname + (path || ''),
             headers: headers
-        };
+        });
         let chunks = [];
         let request = client.request(options, response => {
             response.on('data', chunk => {
@@ -237,3 +239,6 @@ HttpService.FORM_MEDIA_TYPE = FORM_MEDIA_TYPE;
 //------------------------------------------------------------------------------
 
 module.exports = HttpService;
+
+const service = new HttpService('http://httpbin.org');
+service.get('get', (err, data) => console.log(data))

@@ -2,7 +2,7 @@
 
 A wrapper around the node http or https request method.
 
-Version 1.0.0
+Version 1.0.1
 
 ## 1. Installation
 
@@ -15,7 +15,7 @@ $ npm install --save @be/http-service
 ```javascript
 const HttpService = require('@be/http-service');
 
-const service = new HttpService('http://httpbin.org');
+const service = new HttpService('http://httpbin.org', options);
 
 service.get('get', (err, body) => {
     console.log(body);
@@ -29,10 +29,12 @@ The package exports the `HttpService` class. This class provides the `request` m
 ### 3.1 constructor
 
 ```javascript
-HttpService(uri)
+HttpService(uri [, options])
 ```
 
-Creates a new `HttpService` instance for the specified `uri`. The `uri` is parsed and the protocol, hostname, port, and pathname are extracted. The protocol is required and must be either `http` or `https`. If the port is not specified, it will default to port 80 for `http` requests and port 443 for `https` requests. The pathname is prepended to all requests and will be a `/` if not specified. Therefore, do not prefix any request path with an additional `/`.
+Creates a new `HttpService` instance for the specified `uri`. The `uri` is parsed and the protocol, hostname, port, and pathname are extracted. The protocol is required and must be either `http` or `https`. If the port is not specified, it will default to port 80 for `http` requests and port 443 for `https` requests. The pathname is prepended to all requests and will be a `/` if not specified. Therefore, do not prefix any request path with an additional `/` if the URI does not have a path.
+
+The `options` argument provides for additional options that are passed to the `http.request` or `https.request` methods.
 
 **Examples:**
 
@@ -53,7 +55,7 @@ service.request(method, path, headers, data, callback)
 Sends an HTTP or an HTTPS request to the host specified in the constructor.
 
 - The `method` should be one of `GET`, `HEAD`, `OPTIONS`, `TRACE`, `POST`, `PUT`, `PATCH` or `DELETE`. The method is converted to upper case.
-- The `path` identifies the resource with respect to the URI specified in the constructor. Do not prefix this path with a `/`.
+- The `path` identifies the resource with respect to the URI specified in the constructor. Do not prefix this path with a `/` if the URI does not have a path component (the Node.js `url.parse` method automatically adds the slash for empty paths).
 - The `headers` must be an object or `null`.
 - The `data` specifies the message body and can be a `Buffer`, a string, or an object. If the `data` parameter is an object, then it is processed as follows:
     - If the `Content-Type` header is `application/json`, then the data is serialized by calling `JSON.stringify`.
