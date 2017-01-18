@@ -239,6 +239,3 @@ HttpService.FORM_MEDIA_TYPE = FORM_MEDIA_TYPE;
 //------------------------------------------------------------------------------
 
 module.exports = HttpService;
-
-const service = new HttpService('http://httpbin.org');
-service.get('get', (err, data) => console.log(data))
