@@ -183,6 +183,8 @@ class HttpService {
                 let body = Buffer.concat(chunks);
                 if (method === 'HEAD') {
                     body = null;
+                } else if (!type) {
+                    return callback(httpError(502, options, 'No Content-Type header in response.'));
                 } else if (type === 'application/json') {
                     body = body.toString();
                     if (!body) {
