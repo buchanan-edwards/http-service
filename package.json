@@ -1,6 +1,6 @@
 {
   "name": "@be/http-service",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "A wrapper around the node http or https request method.",
   "main": "http-service.js",
   "scripts": {

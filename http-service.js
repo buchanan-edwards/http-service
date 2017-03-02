@@ -175,10 +175,13 @@ class HttpService {
                 chunks.push(chunk);
             });
             response.on('end', _ => {
-                if (response.statusCode === 204) {
+                let code = response.statusCode;
+                if (code === 204) {
                     return callback(null, null, null, response.headers);
                 }
-                let code = response.statusCode;
+                if (code !== 200) {
+                    return callback(httpError(code, options, response.statusMessage));
+                }
                 let type = removeParams(headerValue(response.headers, CONTENT_TYPE_HEADER));
                 let body = Buffer.concat(chunks);
                 if (method === 'HEAD') {
@@ -210,11 +213,6 @@ class HttpService {
                     }
                 } else if (type.startsWith('text/') || type.endsWith('+xml')) {
                     body = body.toString();
-                }
-                let success = code === 200 || code === 201;
-                if (!success) {
-                    return callback(httpError(response.statusCode, options,
-                        'The request was not successfully completed.'));
                 }
                 callback(null, body, type, response.headers);
             });
