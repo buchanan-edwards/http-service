@@ -229,15 +229,15 @@ class HttpService {
                 let status = new HttpStatus(response.statusCode)
                 let type = _removeParams(_headerValue(response.headers, CONTENT_TYPE_HEADER))
                 let body = status.noContent ? null : Buffer.concat(chunks)
+                let err = null
                 try {
                     body = _parseBody(type, body)
+                    if (status.isError()) {
+                        let message = _makeMessage(options, _parseError(type, body))
+                        err = status.error(message)
+                    }
                 } catch (e) {
-                    return callback(new Error(_makeMessage(options, e.message)))
-                }
-                let err = null
-                if (status.isError()) {
-                    let message = _makeMessage(options, _parseError(type, body))
-                    err = status.error(message)
+                    err = new Error(_makeMessage(options, 'Parse Error: ' + e.message))
                 }
                 return callback(err, {
                     status: status,
