@@ -2,7 +2,7 @@
 
 A wrapper around the node http or https request method.
 
-Version 1.0.4
+Version 1.1.0
 
 ## 1. Installation
 
@@ -17,8 +17,8 @@ const HttpService = require('@be/http-service');
 
 const service = new HttpService('http://httpbin.org', options);
 
-service.get('get', (err, body) => {
-    console.log(body);
+service.get('get', (err, response) => {
+    console.log(body, response);
 }
 ```
 
@@ -61,10 +61,11 @@ Sends an HTTP or an HTTPS request to the host specified in the constructor.
     - If the `Content-Type` header is `application/json`, then the data is serialized by calling `JSON.stringify`.
     - If the `Content-Type` header is `application/x-www-form-urlencoded`, then the data is serialized by calling `querystring.stringify`.
     - If the `Content-Type` header is not set, then the data is serialized by calling `JSON.stringify` and the `Content-Type` header is set to  `application/json`.
-- The `callback` is called upon completion of the request. On error, it is called as `callback(err)`. On success, it is called as `callback(null, data, type, headers)`.
-    - The `data` is the response message body. It will be a string if the `type` begins with `text` or ends with `+xml`. It will be an object if the `type` is `application/json`. Otherwise, the `data` will be a `Buffer`.
-    - The `type` is the value of the `Content-Type` header with all parameters removed. For example, if the `Content-Type` is `text/html; charset=utf-8`, then the `type` argument in the callback will simply be `text/html`.
-    - The `headers` are the full, unmodified headers from the response.
+- The `callback` is called upon completion of the request. On error, it is called as `callback(err)`. On success, it is called as `callback(null, response)`. The `response` is an object having the following properties: `status`, `headers`, `type`, and `body`.
+    - The `status` is an instance of the [`HttpStatus`](https://github.com/buchanan-edwards/http-status) class.
+    - The `headers` are the HTTP response headers.
+    - The `type` is the value of the `Content-Type` header with all parameters removed. For example, if the `Content-Type` is `text/html; charset=utf-8`, then the `type` will simply be `text/html`.
+    - The `body` is the response message body. It will be a string if the `type` begins with `text` or ends with `+xml`. It will be an object if the `type` is `application/json`. Otherwise, the `body` will be a `Buffer`.
 
 ### 3.3 get, head
 

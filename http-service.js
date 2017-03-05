@@ -1,75 +1,126 @@
-//==============================================================================
-// Exports the HttpService class that sends HTTP or HTTPS requests to a server.
-//==============================================================================
 // Copyright (c) 2017 Buchanan & Edwards
-//==============================================================================
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to
+// deal in the Software without restriction, including without limitation the
+// rights to use, copy, modify, merge, publish, distribute, sublicense, and/or
+// sell copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in
+// all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+// FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+// IN THE SOFTWARE.
 
-'use strict';
+'use strict'
 
 //------------------------------------------------------------------------------
 // Dependencies
 //------------------------------------------------------------------------------
 
-const http = require('http');
-const https = require('https');
-const HttpError = require('@be/http-error');
-const url = require('url');
-const util = require('util');
-const querystring = require('querystring');
+const http = require('http')
+const https = require('https')
+const url = require('url')
+const util = require('util')
+const querystring = require('querystring')
+const HttpStatus = require('@be/http-status')
 
 //------------------------------------------------------------------------------
 // Initialization
 //------------------------------------------------------------------------------
 
-const JSON_MEDIA_TYPE = 'application/json';
-const FORM_MEDIA_TYPE = 'application/x-www-form-urlencoded';
+const JSON_MEDIA_TYPE = 'application/json'
+const FORM_MEDIA_TYPE = 'application/x-www-form-urlencoded'
 
-const CONTENT_TYPE_HEADER = 'content-type';
-const CONTENT_LENGTH_HEADER = 'content-length';
+const CONTENT_TYPE_HEADER = 'content-type'
+const CONTENT_LENGTH_HEADER = 'content-length'
 
-const slice = Array.prototype.slice;
+const slice = Array.prototype.slice
 
 //------------------------------------------------------------------------------
 // Private
 //------------------------------------------------------------------------------
 
 function httpError(code, opt, msg) {
-    msg = `[${opt.method} ${opt.protocol}//${opt.host}:${opt.port}${opt.path}] ${msg}`;
-    return new HttpError(code, msg);
+    msg = `[${opt.method} ${opt.protocol}//${opt.host}:${opt.port}${opt.path}] ${msg}`
+    return new HttpError(code, msg)
 }
 
-function appendQuery(path, query) {
+function _appendQuery(path, query) {
     if (util.isObject(query)) {
-        query = querystring.stringify(query);
+        query = querystring.stringify(query)
     }
     if (util.isString(query)) {
-        let sep = (path.indexOf('?') < 0) ? '?' : '&';
-        return path + sep + query;
+        let sep = (path.indexOf('?') < 0) ? '?' : '&'
+        return path + sep + query
     }
-    return path;
+    return path
 }
 
-function headerValue(headers, name) {
+function _headerValue(headers, name) {
     if (util.isObject(headers)) {
-        let keys = Object.keys(headers);
+        let keys = Object.keys(headers)
         for (let i = 0, n = keys.length; i < n; i++) {
-            let key = keys[i];
+            let key = keys[i]
             if (key.toLowerCase() === name) {
-                return headers[key];
+                return headers[key]
             }
         }
     }
-    return null;
+    return null
 }
 
-function removeParams(value) {
+function _removeParams(value) {
     if (value) {
-        let semi = value.indexOf(';');
+        let semi = value.indexOf(';')
         if (semi > 0) {
-            return value.substring(0, semi);
+            return value.substring(0, semi)
         }
     }
-    return value;
+    return value
+}
+
+function _parseBody(type, body) {
+    if (type === JSON_MEDIA_TYPE) {
+        return JSON.parse(body.toString())
+    } else if (type && (type.startsWith('text/') || type.endsWith('+xml'))) {
+        return body.toString()
+    } else {
+        return body
+    }
+}
+
+function _parseError(type, body) {
+    if (type !== JSON_MEDIA_TYPE) {
+        return null
+    }
+    // Sometimes Microsoft returns an error description.
+    if (body.error_description) {
+        let message = body.error_description.split(/\r?\n/)[0]
+        return callback(httpError(code, options, message))
+    }
+    // Other times Microsoft returns an error object.
+    if (body.error && body.error.message) {
+        let message = body.error.message
+        return callback(httpError(code, options, message))
+    }
+    // It could be an odata error.
+    if (body['odata.error'] && body['odata.error'].message) {
+        let message = body['odata.error'].message.value
+        return callback(httpError(code, options, message))
+    }
+    return null
+}
+
+function _makeMessage(opt, txt) {
+    let msg = `[${opt.method} ${opt.protocol}//${opt.host}:${opt.port}${opt.path}]`
+    return txt ? `${msg} ${txt}` : msg
 }
 
 //------------------------------------------------------------------------------
@@ -82,85 +133,85 @@ class HttpService {
      * Accepts an HTTP or HTTPS URI (e.g., https://example.com:443).
      */
     constructor(uri, options) {
-        const parsed = url.parse(uri);
+        const parsed = url.parse(uri)
         if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
-            throw new URIError(`'${uri}' invalid protocol (expected http or https)`);
+            throw new URIError(`'${uri}' invalid protocol (expected http or https)`)
         }
-        this.protocol = parsed.protocol;
-        this.hostname = parsed.hostname;
-        this.pathname = parsed.pathname;
-        this.port = parseInt(parsed.port);
+        this.protocol = parsed.protocol
+        this.hostname = parsed.hostname
+        this.pathname = parsed.pathname
+        this.port = parseInt(parsed.port)
         if (!this.port) {
-            this.port = this.protocol === 'http:' ? 80 : 443;
+            this.port = this.protocol === 'http:' ? 80 : 443
         }
-        this.options = options || {};
+        this.options = options || {}
     }
 
     // get(path, [query,] callback)
-    // callback(err, body, type);
+    // callback(err, body, type)
     get(path, query, callback) {
         if (typeof query === 'function') {
-            callback = query;
-            query = null;
+            callback = query
+            query = null
         } else {
-            path = appendQuery(path, query);
+            path = _appendQuery(path, query)
         }
-        this.request('GET', path, null, null, callback);
+        this.request('GET', path, null, null, callback)
     }
 
     head(path, query, callback) {
         if (typeof query === 'function') {
-            callback = query;
-            query = null;
+            callback = query
+            query = null
         } else {
-            path = appendQuery(path, query);
+            path = _appendQuery(path, query)
         }
-        this.request('HEAD', path, null, null, callback);
+        this.request('HEAD', path, null, null, callback)
     }
 
     post(path, data, callback) {
-        this.request('POST', path, null, data, callback);
+        this.request('POST', path, null, data, callback)
     }
 
     put(path, data, callback) {
-        this.request('PUT', path, null, data, callback);
+        this.request('PUT', path, null, data, callback)
     }
 
     patch(path, data, callback) {
-        this.request('PATCH', path, null, data, callback);
+        this.request('PATCH', path, null, data, callback)
     }
 
     delete(path, callback) {
-        this.request('DELETE', path, null, null, callback);
+        this.request('DELETE', path, null, null, callback)
     }
 
     request(method, path, headers, data, callback) {
-        const client = this.protocol === 'http:' ? http : https;
-        method = method.toUpperCase();
-        headers = headers || {};
+        const client = this.protocol === 'http:' ? http : https
+        method = method.toUpperCase()
+        headers = headers || {}
         if (data !== null) {
             if (util.isObject(data) && !Buffer.isBuffer(data)) {
-                let type = headerValue(headers, CONTENT_TYPE_HEADER);
+                let type = _headerValue(headers, CONTENT_TYPE_HEADER)
                 switch (type) {
                     case JSON_MEDIA_TYPE:
-                        data = JSON.stringify(data);
-                        break;
+                        data = JSON.stringify(data)
+                        break
                     case FORM_MEDIA_TYPE:
-                        data = querystring.stringify(data);
-                        break;
+                        data = querystring.stringify(data)
+                        break
                     case null:
-                        headers[CONTENT_TYPE_HEADER] = JSON_MEDIA_TYPE;
-                        data = JSON.stringify(data);
-                        break;
+                        headers[CONTENT_TYPE_HEADER] = JSON_MEDIA_TYPE
+                        data = JSON.stringify(data)
+                        break
                     default:
-                        throw new Error('Unsuported media type (cannot serialize object): ' + type);
+                        throw new TypeError(`Unsuported media type: ${type}. Cannot serialize object.`)
                 }
             }
-            if (util.isString(data) && headerValue(headers, CONTENT_LENGTH_HEADER) === null) {
-                headers[CONTENT_LENGTH_HEADER] = Buffer.byteLength(data);
+            if (util.isString(data) && _headerValue(headers, CONTENT_LENGTH_HEADER) === null) {
+                headers[CONTENT_LENGTH_HEADER] = Buffer.byteLength(data)
             }
         }
-        let options = Object.assign({}, this.options); // copy
+        let options = Object.assign({}, this.options) // copy
         Object.assign(options, { // override
             method: method,
             protocol: this.protocol,
@@ -168,74 +219,53 @@ class HttpService {
             port: this.port,
             path: this.pathname + (path || ''),
             headers: headers
-        });
-        let chunks = [];
+        })
+        let chunks = []
         let request = client.request(options, response => {
             response.on('data', chunk => {
-                chunks.push(chunk);
-            });
+                chunks.push(chunk)
+            })
             response.on('end', _ => {
-                let code = response.statusCode;
-                if (code === 204) {
-                    return callback(null, null, null, response.headers);
+                let status = new HttpStatus(response.statusCode)
+                let type = _removeParams(_headerValue(response.headers, CONTENT_TYPE_HEADER))
+                let body = status.noContent ? null : Buffer.concat(chunks)
+                try {
+                    body = _parseBody(type, body)
+                } catch (e) {
+                    return callback(new Error(_makeMessage(options, e.message)))
                 }
-                if (code !== 200) {
-                    return callback(httpError(code, options, response.statusMessage));
+                let err = null
+                if (status.isError()) {
+                    let message = _makeMessage(options, _parseError(type, body))
+                    err = status.error(message)
                 }
-                let type = removeParams(headerValue(response.headers, CONTENT_TYPE_HEADER));
-                let body = Buffer.concat(chunks);
-                if (method === 'HEAD') {
-                    body = null;
-                } else if (!type) {
-                    return callback(httpError(502, options, 'No Content-Type header in response.'));
-                } else if (type === 'application/json') {
-                    body = body.toString();
-                    if (!body) {
-                        return callback(httpError(502, options, 'Empty Response'));
-                    }
-                    try {
-                        body = JSON.parse(body);
-                    } catch (e) {
-                        return callback(httpError(502, options, e.message));
-                    }
-                    // Sometimes Microsoft returns an error description.
-                    if (body.error_description) {
-                        let message = body.error_description.split(/\r?\n/)[0];
-                        return callback(httpError(code, options, message));
-                    }
-                    // Other times Microsoft returns an error object.
-                    if (body.error && body.error.message) {
-                        return callback(httpError(code, options, body.error.message));
-                    }
-                    // It could be an odata error.
-                    if (body['odata.error'] && body['odata.error'].message) {
-                        return callback(httpError(code, options, body['odata.error'].message.value));
-                    }
-                } else if (type.startsWith('text/') || type.endsWith('+xml')) {
-                    body = body.toString();
-                }
-                callback(null, body, type, response.headers);
-            });
-        });
+                return callback(err, {
+                    status: status,
+                    headers: response.headers,
+                    type: type,
+                    body: body
+                })
+            })
+        })
         request.on('error', err => {
-            callback(err);
-        });
+            callback(err)
+        })
         if (data !== null) {
             if (util.isString(data) || Buffer.isBuffer(data)) {
-                request.write(data);
+                request.write(data)
             } else {
-                throw new Error('Invalid request data (must be string or Buffer): ' + (typeof data));
+                throw new TypeError(`Expected a string or Buffer for the data (got ${typeof data} instead).`)
             }
         }
-        request.end();
+        request.end()
     }
 }
 
-HttpService.JSON_MEDIA_TYPE = JSON_MEDIA_TYPE;
-HttpService.FORM_MEDIA_TYPE = FORM_MEDIA_TYPE;
+HttpService.JSON_MEDIA_TYPE = JSON_MEDIA_TYPE
+HttpService.FORM_MEDIA_TYPE = FORM_MEDIA_TYPE
 
 //------------------------------------------------------------------------------
 // Exports
 //------------------------------------------------------------------------------
 
-module.exports = HttpService;
+module.exports = HttpService
