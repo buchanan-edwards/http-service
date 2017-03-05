@@ -61,7 +61,7 @@ Sends an HTTP or an HTTPS request to the host specified in the constructor.
     - If the `Content-Type` header is `application/json`, then the data is serialized by calling `JSON.stringify`.
     - If the `Content-Type` header is `application/x-www-form-urlencoded`, then the data is serialized by calling `querystring.stringify`.
     - If the `Content-Type` header is not set, then the data is serialized by calling `JSON.stringify` and the `Content-Type` header is set to  `application/json`.
-- The `callback` is called upon completion of the request. On error, it is called as `callback(err)`. On success, it is called as `callback(null, response)`. The `response` is an object having the following properties: `status`, `headers`, `type`, and `body`.
+- The `callback` is called upon completion of the request. On error, it is called as `callback(err, response)`. On success, it is called as `callback(null, response)`. The `response` is an object having the following properties: `status`, `headers`, `type`, and `body`.
     - The `status` is an instance of the [`HttpStatus`](https://github.com/buchanan-edwards/http-status) class.
     - The `headers` are the HTTP response headers.
     - The `type` is the value of the `Content-Type` header with all parameters removed. For example, if the `Content-Type` is `text/html; charset=utf-8`, then the `type` will simply be `text/html`.
