@@ -2,7 +2,7 @@
 
 A wrapper around the node http or https request method.
 
-Version 1.1.1
+Version 1.1.2
 
 ## 1. Installation
 
@@ -94,7 +94,15 @@ service.delete(path, callback)
 
 Convenience method for the `DELETE` request.
 
-### 3.6 Media Types
+### 3.6 abortAll
+
+Aborts all pending requests. Each pending request will fail with a 499 status code error.
+
+```javascript
+service.abort(callback)
+```
+
+### 3.7 Media Types
 
 There are two static media type constants on the HttpService class:
 
