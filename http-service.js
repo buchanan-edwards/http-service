@@ -28,7 +28,6 @@ const http = require('http')
 const https = require('https')
 const url = require('url')
 const util = require('util')
-const uuid = require('uuid')
 const querystring = require('querystring')
 const HttpStatus = require('@be/http-status')
 
@@ -146,7 +145,6 @@ class HttpService {
             this.port = this.protocol === 'http:' ? 80 : 443
         }
         this.options = options || {}
-        this._requests = {} // used by the abortAll() method
     }
 
     // get(path, [query,] callback)
@@ -224,13 +222,10 @@ class HttpService {
         })
         let chunks = []
         let request = client.request(options, response => {
-            let requestId = uuid.v4()
-            this._requests[requestId] = request
             response.on('data', chunk => {
                 chunks.push(chunk)
             })
             response.on('end', _ => {
-                delete this._requests[requestId]
                 let status = new HttpStatus(response.statusCode)
                 let type = _removeParams(_headerValue(response.headers, CONTENT_TYPE_HEADER))
                 let body = status.noContent ? null : Buffer.concat(chunks)
@@ -252,10 +247,6 @@ class HttpService {
                 })
             })
         })
-        request.on('abort', _ => {
-            delete this._requests[requestId]
-            callback(HttpStatus.clientClosedRequest.error('Request aborted by the application.'))
-        })
         request.on('error', err => {
             callback(err)
         })
@@ -267,13 +258,6 @@ class HttpService {
             }
         }
         request.end()
-    }
-
-    abortAll() {
-        Object.keys(this._requests).forEach(key => {
-            let request = this._requests[key]
-            request.abort()
-        })
     }
 }
 
